@@ -9,13 +9,27 @@ def fetch_data():
     ticker = "QQQ"
     data = yf.download(ticker, start="1999-03-10")
 
+    # 🔹 Kontrollera om data hämtades korrekt
+    if data.empty:
+        st.error("Kunde inte hämta data från Yahoo Finance.")
+        return None
+
     # 🔹 Konvertera index till kolumn & fixa datumformat
     data.reset_index(inplace=True)
     data["Date"] = pd.to_datetime(data["Date"])  # Säkerställ rätt datumformat
 
-    # 🔹 Konvertera numeriska kolumner
-    for col in ["Open", "High", "Low", "Close", "Volume"]:
-        data[col] = pd.to_numeric(data[col], errors="coerce")
+    # 🔹 Lista över numeriska kolumner
+    numeric_cols = ["Open", "High", "Low", "Close", "Volume"]
+
+    # 🔹 Kontrollera om alla nödvändiga kolumner finns
+    missing_cols = [col for col in numeric_cols if col not in data.columns]
+    if missing_cols:
+        st.error(f"Saknade kolumner i datan: {missing_cols}")
+        return None
+
+    # 🔹 Konvertera numeriska kolumner och fyll NaN med 0
+    for col in numeric_cols:
+        data[col] = pd.to_numeric(data[col], errors="coerce").fillna(0)
 
     # 🔹 Beräkna MA20
     data["MA20"] = data["Close"].rolling(window=20).mean()
@@ -33,6 +47,10 @@ def fetch_data():
 
 # 🔹 Funktion för att skapa candlestick-grafen
 def plot_candlestick_chart(data):
+    if data is None or data.empty:
+        st.error("Ingen data tillgänglig för att skapa grafen.")
+        return go.Figure()
+
     fig = go.Figure()
 
     # 🔹 Lägg till Candlestick-graf
@@ -91,6 +109,10 @@ def show():
 
     # 🔹 Hämta data
     data = fetch_data()
+
+    if data is None:
+        st.error("Ingen data tillgänglig. Kontrollera felmeddelanden ovan.")
+        return
 
     # 🔹 Debugging: Visa första 5 raderna av datan
     st.write("### Debug: Data Preview (första 5 raderna)")
