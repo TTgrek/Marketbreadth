@@ -33,8 +33,8 @@ def show():
         high=data["High"],
         low=data["Low"],
         close=data["Close"],
-        increasing_line_color="green",
-        decreasing_line_color="red",
+        increasing=dict(line=dict(color="green")),
+        decreasing=dict(line=dict(color="red")),
         name="Candlestick"
     ))
 
@@ -98,7 +98,7 @@ def show():
     data_sorted = data[::-1]
 
     # 🔹 Visa tabellen korrekt
-    required_cols = ["Close", "High", "Low", "Open", "Volume", "MA20"]
+    required_cols = ["Date", "Close", "High", "Low", "Open", "Volume", "MA20"]
     available_cols = [col for col in required_cols if col in data_sorted.columns]
 
     if available_cols:
