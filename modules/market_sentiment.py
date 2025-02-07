@@ -9,8 +9,9 @@ def fetch_data():
     ticker = "QQQ"
     data = yf.download(ticker, start="1999-03-10")
 
-    # 🔹 Konvertera index till kolumn
+    # 🔹 Konvertera index till kolumn & fixa datumformat
     data.reset_index(inplace=True)
+    data["Date"] = pd.to_datetime(data["Date"])  # Säkerställ rätt datumformat
 
     # 🔹 Beräkna glidande medelvärde (MA20)
     data["MA20"] = data["Close"].rolling(window=20).mean()
@@ -81,6 +82,10 @@ def show():
 
     # 🔹 Hämta data
     data = fetch_data()
+
+    # 🔹 Debugging: Visa första 5 raderna av datan
+    st.write("### Debug: Data Preview (första 5 raderna)")
+    st.dataframe(data.head())
 
     # 🔹 Visa Candlestick-grafen
     st.plotly_chart(plot_candlestick_chart(data), use_container_width=True)
