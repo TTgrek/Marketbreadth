@@ -8,10 +8,10 @@ import plotly.graph_objects as go
 def fetch_data():
     ticker = "QQQ"
     data = yf.download(ticker, start="1999-03-10")
-    
+
     # 🔹 Konvertera index till kolumn
     data.reset_index(inplace=True)
-    
+
     # 🔹 Beräkna glidande medelvärde (MA20)
     data["MA20"] = data["Close"].rolling(window=20).mean()
 
@@ -52,16 +52,16 @@ def plot_candlestick_chart(data):
         y=data["Cycle Peak"],
         mode="markers",
         name="Topp",
-        marker=dict(color="red", symbol="triangle-up", size=10)
+        marker=dict(color="red", symbol="triangle-down", size=10)
     ))
 
-    # 🔹 Lägg till cykelbottnar (blå trianglar)
+    # 🔹 Lägg till cykelbottnar (gröna trianglar)
     fig.add_trace(go.Scatter(
         x=data["Date"],
         y=data["Cycle Bottom"],
         mode="markers",
         name="Botten",
-        marker=dict(color="blue", symbol="triangle-down", size=10)
+        marker=dict(color="green", symbol="triangle-up", size=10)
     ))
 
     # 🔹 Anpassa layout
@@ -82,15 +82,5 @@ def show():
     # 🔹 Hämta data
     data = fetch_data()
 
-    # 🔹 Debug: Visa datan som tabell (vänd så senaste datumet är överst)
-    data_sorted = data.sort_values(by="Date", ascending=False)
-    st.markdown("### Debug: Data Preview (första raderna)")
-    st.dataframe(data_sorted.head(10))
-
     # 🔹 Visa Candlestick-grafen
     st.plotly_chart(plot_candlestick_chart(data), use_container_width=True)
-
-    # 🔹 Visa tabellen bredare
-    st.markdown("### 📅 Fullständig Data (senaste 100 dagarna)")
-    st.dataframe(data_sorted.head(100))
-
