@@ -13,14 +13,23 @@ def fetch_data():
     data.reset_index(inplace=True)
     data["Date"] = pd.to_datetime(data["Date"])  # Säkerställ rätt datumformat
 
-    # 🔹 Beräkna glidande medelvärde (MA20)
+    # 🔹 Konvertera numeriska kolumner
+    for col in ["Open", "High", "Low", "Close", "Volume"]:
+        data[col] = pd.to_numeric(data[col], errors="coerce")
+
+    # 🔹 Beräkna MA20
     data["MA20"] = data["Close"].rolling(window=20).mean()
 
-    # 🔹 Identifiera cykeltoppar och bottnar
-    data["Cycle Peak"] = data["High"][(data["High"] == data["High"].rolling(20, center=True).max())]
-    data["Cycle Bottom"] = data["Low"][(data["Low"] == data["Low"].rolling(20, center=True).min())]
+    # 🔹 Identifiera cykeltoppar och bottnar (med filtrering)
+    data["Cycle Peak"] = data["High"][
+        (data["High"] == data["High"].rolling(50, center=True).max())
+    ].where(data["Close"] > data["MA20"])  # Endast toppar över MA20
 
-    return data
+    data["Cycle Bottom"] = data["Low"][
+        (data["Low"] == data["Low"].rolling(50, center=True).min())
+    ].where(data["Close"] < data["MA20"])  # Endast bottnar under MA20
+
+    return data.dropna(subset=["Close"])  # Ta bort rader med NaN i Close
 
 # 🔹 Funktion för att skapa candlestick-grafen
 def plot_candlestick_chart(data):
@@ -78,7 +87,7 @@ def plot_candlestick_chart(data):
 
 # 🔹 Huvudfunktion som visas i Streamlit
 def show():
-    st.markdown("## 📊 Market Sentiment")
+    st.markdown("# 📊 Market Sentiment")
 
     # 🔹 Hämta data
     data = fetch_data()
