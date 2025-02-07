@@ -1,122 +1,93 @@
 import streamlit as st
 import pandas as pd
-import yfinance as yf
 import plotly.graph_objects as go
+import yfinance as yf
 
-def show():
-    st.title("📈 Market Sentiment")
-
-    # 🔹 Hämta QQQ-data
+# Hämta QQQ-data
+@st.cache_data
+def load_data():
     ticker = "QQQ"
     data = yf.download(ticker, start="1999-03-10")
-
-    # 🔹 Kontrollera att data hämtas korrekt
-    if data.empty:
-        st.error("❌ Ingen data kunde hämtas för QQQ. Kolla internetanslutning och försök igen.")
-        return
-
-    # 🔹 Skriv ut rådata för felsökning
-    st.write("### Debug: Data Preview (första raderna)")
-    st.dataframe(data.head())
-
-    # 🔹 Säkerställ att Open, High, Low och Close finns
-    missing_cols = [col for col in ["Open", "High", "Low", "Close"] if col not in data.columns]
-    if missing_cols:
-        st.error(f"❌ Följande viktiga kolumner saknas: {missing_cols}. Kan inte rita Candlestick-graf.")
-        return
-
-    # 🔹 Lägg till MA20
+    data.reset_index(inplace=True)
+    
+    # Beräkna MA20
     data["MA20"] = data["Close"].rolling(window=20).mean()
 
-    # 🔹 Identifiera cykeltoppar & bottnar
+    # Identifiera toppar och bottnar baserat på High och Low
     window = 20
-    data["Cycle Peak"] = data["High"] == data["High"].rolling(window, center=True).max()
-    data["Cycle Bottom"] = data["Low"] == data["Low"].rolling(window, center=True).min()
+    data["Cycle Peak"] = data["High"][(data["High"] == data["High"].rolling(window, center=True).max())]
+    data["Cycle Bottom"] = data["Low"][(data["Low"] == data["Low"].rolling(window, center=True).min())]
 
-    # 🔹 Skapa Candlestick-graf
-    fig = go.Figure()
+    return data
 
-    # 📌 Candlestick med OHLC-data
-    fig.add_trace(go.Candlestick(
-        x=data.index,
-        open=data["Open"],
-        high=data["High"],
-        low=data["Low"],
-        close=data["Close"],
-        increasing=dict(line=dict(color="green"), fillcolor="green"),
-        decreasing=dict(line=dict(color="red"), fillcolor="red"),
-        name="Candlestick"
-    ))
+# Ladda data
+data = load_data()
 
-    # 📌 Lägg till MA20 som blå linje
-    fig.add_trace(go.Scatter(
-        x=data.index, 
-        y=data["MA20"], 
-        mode="lines", 
-        line=dict(color="blue", width=2),
-        name="MA20"
-    ))
+# Vänd på datan så senaste datum är överst
+data_sorted = data.sort_values(by="Date", ascending=False)
 
-    # 📌 Lägg till cykeltoppar och bottnar
-    fig.add_trace(go.Scatter(
-        x=data.index[data["Cycle Peak"]], 
-        y=data["High"][data["Cycle Peak"]], 
-        mode="markers",
-        marker=dict(color="red", size=10, symbol="triangle-up"),
-        name="Topp"
-    ))
+# Skapa Streamlit-app
+st.set_page_config(page_title="Market Sentiment", layout="wide")
 
-    fig.add_trace(go.Scatter(
-        x=data.index[data["Cycle Bottom"]], 
-        y=data["Low"][data["Cycle Bottom"]], 
-        mode="markers",
-        marker=dict(color="blue", size=10, symbol="triangle-down"),
-        name="Botten"
-    ))
+st.markdown("## 📊 Market Sentiment")
 
-    # 🔹 Layout-inställningar för en tydlig graf
-    fig.update_layout(
-        title="QQQ Candlestick Chart med MA20 & Cykler",
-        xaxis_title="Datum",
-        yaxis_title="Pris",
-        xaxis_rangeslider_visible=False,
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        height=700,
-        font=dict(family="Arial", size=14, color="black"),
-        xaxis=dict(
-            showgrid=True,
-            gridcolor="lightgrey",
-            tickformat="%Y-%m-%d",
-            tickangle=45
-        ),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor="lightgrey"
-        ),
-        legend=dict(
-            x=0.01,
-            y=0.99,
-            bgcolor="rgba(255,255,255,0.7)"
-        )
-    )
+# Visa tabell för felsökning
+st.markdown("### Debug: Data Preview (första raderna)")
+st.dataframe(data_sorted.head(10))  # Visa de 10 senaste datumen
 
-    # 🔹 Visa grafen i Streamlit
-    st.plotly_chart(fig, use_container_width=True)
+# Skapa Candlestick-graf
+fig = go.Figure()
 
-    # 🔹 Sortera data (nyaste datum överst)
-    data_sorted = data[::-1]
+fig.add_trace(go.Candlestick(
+    x=data["Date"],
+    open=data["Open"],
+    high=data["High"],
+    low=data["Low"],
+    close=data["Close"],
+    increasing_line_color="green",
+    decreasing_line_color="red",
+    name="Candlestick"
+))
 
-    # 🔹 Visa tabellen korrekt
-    required_cols = ["Close", "High", "Low", "Open", "Volume", "MA20"]
-    available_cols = [col for col in required_cols if col in data_sorted.columns]
+# Lägg till MA20 som blå linje
+fig.add_trace(go.Scatter(
+    x=data["Date"],
+    y=data["MA20"],
+    mode="lines",
+    line=dict(color="blue", width=2),
+    name="MA20"
+))
 
-    if available_cols:
-        st.dataframe(
-            data_sorted[available_cols],
-            height=600,
-            width=1200
-        )
-    else:
-        st.error("❌ Ingen data tillgänglig för tabellen. Kolla kolumnnamnen.")
+# Lägg till markeringar för toppar (röda trianglar) och bottnar (blå trianglar)
+fig.add_trace(go.Scatter(
+    x=data["Date"],
+    y=data["Cycle Peak"],
+    mode="markers",
+    marker=dict(color="red", size=7, symbol="triangle-up"),
+    name="Topp"
+))
 
+fig.add_trace(go.Scatter(
+    x=data["Date"],
+    y=data["Cycle Bottom"],
+    mode="markers",
+    marker=dict(color="blue", size=7, symbol="triangle-down"),
+    name="Botten"
+))
+
+# Layout
+fig.update_layout(
+    title="QQQ Candlestick Chart med MA20 & Cykler",
+    xaxis_title="Datum",
+    yaxis_title="Pris",
+    xaxis_rangeslider_visible=False,
+    template="plotly_white",
+    legend=dict(x=0, y=1.05, orientation="h")
+)
+
+# Visa graf
+st.plotly_chart(fig, use_container_width=True)
+
+# Visa bredare tabell med alla kolumner
+st.markdown("### 📅 Fullständig Data (senaste 100 dagarna)")
+st.dataframe(data_sorted.head(100))
