@@ -10,8 +10,8 @@ def fetch_data():
     data = yf.download(ticker, start="1999-03-10")
 
     # 🔹 Kontrollera om data hämtades korrekt
-    if data.empty:
-        st.error("Kunde inte hämta data från Yahoo Finance.")
+    if data is None or data.empty:
+        st.error("❌ Kunde inte hämta data från Yahoo Finance. Kontrollera API-anslutningen.")
         return None
 
     # 🔹 Konvertera index till kolumn & fixa datumformat
@@ -21,34 +21,35 @@ def fetch_data():
     # 🔹 Lista över numeriska kolumner
     numeric_cols = ["Open", "High", "Low", "Close", "Volume"]
 
-    # 🔹 Kontrollera om alla nödvändiga kolumner finns
+    # 🔹 Kontrollera att alla kolumner finns
     missing_cols = [col for col in numeric_cols if col not in data.columns]
     if missing_cols:
-        st.error(f"Saknade kolumner i datan: {missing_cols}")
+        st.error(f"❌ Saknade kolumner i datan: {missing_cols}")
         return None
 
-    # 🔹 Konvertera numeriska kolumner och fyll NaN med 0
+    # 🔹 Konvertera numeriska kolumner och hantera NaN
     for col in numeric_cols:
-        data[col] = pd.to_numeric(data[col], errors="coerce").fillna(0)
+        if data[col].dtype == "O":  # Kontroll om kolumnen är objekt (strängar)
+            data[col] = pd.to_numeric(data[col], errors="coerce").fillna(0)
 
     # 🔹 Beräkna MA20
     data["MA20"] = data["Close"].rolling(window=20).mean()
 
-    # 🔹 Identifiera cykeltoppar och bottnar (med filtrering)
+    # 🔹 Identifiera cykeltoppar och bottnar
     data["Cycle Peak"] = data["High"][
         (data["High"] == data["High"].rolling(50, center=True).max())
-    ].where(data["Close"] > data["MA20"])  # Endast toppar över MA20
+    ].where(data["Close"] > data["MA20"])
 
     data["Cycle Bottom"] = data["Low"][
         (data["Low"] == data["Low"].rolling(50, center=True).min())
-    ].where(data["Close"] < data["MA20"])  # Endast bottnar under MA20
+    ].where(data["Close"] < data["MA20"])
 
-    return data.dropna(subset=["Close"])  # Ta bort rader med NaN i Close
+    return data.dropna(subset=["Close"])  # Ta bort rader där Close är NaN
 
 # 🔹 Funktion för att skapa candlestick-grafen
 def plot_candlestick_chart(data):
     if data is None or data.empty:
-        st.error("Ingen data tillgänglig för att skapa grafen.")
+        st.error("❌ Ingen data tillgänglig för att skapa grafen.")
         return go.Figure()
 
     fig = go.Figure()
@@ -111,7 +112,7 @@ def show():
     data = fetch_data()
 
     if data is None:
-        st.error("Ingen data tillgänglig. Kontrollera felmeddelanden ovan.")
+        st.error("❌ Ingen data tillgänglig. Kontrollera felmeddelanden ovan.")
         return
 
     # 🔹 Debugging: Visa första 5 raderna av datan
