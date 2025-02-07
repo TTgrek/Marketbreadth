@@ -7,11 +7,15 @@ import plotly.graph_objects as go
 @st.cache_data
 def fetch_data():
     ticker = "QQQ"
-    data = yf.download(ticker, start="1999-03-10")
+    try:
+        data = yf.download(ticker, start="1999-03-10")
+    except Exception as e:
+        st.error(f"❌ Fel vid hämtning av data från Yahoo Finance: {e}")
+        return None
 
     # 🔹 Kontrollera om data hämtades korrekt
     if data is None or data.empty:
-        st.error("❌ Kunde inte hämta data från Yahoo Finance. Kontrollera API-anslutningen.")
+        st.error("❌ Ingen data hämtades. Kontrollera anslutningen till Yahoo Finance.")
         return None
 
     # 🔹 Konvertera index till kolumn & fixa datumformat
@@ -29,7 +33,7 @@ def fetch_data():
 
     # 🔹 Konvertera numeriska kolumner och hantera NaN
     for col in numeric_cols:
-        if data[col].dtype == "O":  # Kontroll om kolumnen är objekt (strängar)
+        if col in data:
             data[col] = pd.to_numeric(data[col], errors="coerce").fillna(0)
 
     # 🔹 Beräkna MA20
