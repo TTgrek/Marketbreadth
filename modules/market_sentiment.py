@@ -3,13 +3,16 @@ import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
 
-# Hämta QQQ-data
+# 🛠 **Fix: set_page_config måste vara det första Streamlit-kommandot**
+st.set_page_config(page_title="Market Sentiment", layout="wide")
+
+# 🔹 **Ladda QQQ-data**
 @st.cache_data
 def load_data():
     ticker = "QQQ"
     data = yf.download(ticker, start="1999-03-10")
     data.reset_index(inplace=True)
-    
+
     # Beräkna MA20
     data["MA20"] = data["Close"].rolling(window=20).mean()
 
@@ -20,22 +23,20 @@ def load_data():
 
     return data
 
-# Ladda data
+# 🔹 **Ladda data**
 data = load_data()
 
-# Vänd på datan så senaste datum är överst
+# 🔹 **Vänd på datan så senaste datum är överst**
 data_sorted = data.sort_values(by="Date", ascending=False)
 
-# Skapa Streamlit-app
-st.set_page_config(page_title="Market Sentiment", layout="wide")
-
+# 🔹 **Visa titel**
 st.markdown("## 📊 Market Sentiment")
 
-# Visa tabell för felsökning
+# 🔹 **Debug-tabell för att se datan**
 st.markdown("### Debug: Data Preview (första raderna)")
 st.dataframe(data_sorted.head(10))  # Visa de 10 senaste datumen
 
-# Skapa Candlestick-graf
+# 🔹 **Skapa Candlestick-graf**
 fig = go.Figure()
 
 fig.add_trace(go.Candlestick(
@@ -49,7 +50,7 @@ fig.add_trace(go.Candlestick(
     name="Candlestick"
 ))
 
-# Lägg till MA20 som blå linje
+# 🔹 **Lägg till MA20 som blå linje**
 fig.add_trace(go.Scatter(
     x=data["Date"],
     y=data["MA20"],
@@ -58,7 +59,7 @@ fig.add_trace(go.Scatter(
     name="MA20"
 ))
 
-# Lägg till markeringar för toppar (röda trianglar) och bottnar (blå trianglar)
+# 🔹 **Lägg till markeringar för toppar och bottnar**
 fig.add_trace(go.Scatter(
     x=data["Date"],
     y=data["Cycle Peak"],
@@ -75,7 +76,7 @@ fig.add_trace(go.Scatter(
     name="Botten"
 ))
 
-# Layout
+# 🔹 **Graf-layout**
 fig.update_layout(
     title="QQQ Candlestick Chart med MA20 & Cykler",
     xaxis_title="Datum",
@@ -85,9 +86,9 @@ fig.update_layout(
     legend=dict(x=0, y=1.05, orientation="h")
 )
 
-# Visa graf
+# 🔹 **Visa grafen**
 st.plotly_chart(fig, use_container_width=True)
 
-# Visa bredare tabell med alla kolumner
+# 🔹 **Visa tabellen bredare**
 st.markdown("### 📅 Fullständig Data (senaste 100 dagarna)")
 st.dataframe(data_sorted.head(100))
