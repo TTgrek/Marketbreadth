@@ -15,6 +15,16 @@ def show():
         st.error("❌ Ingen data kunde hämtas för QQQ. Kolla internetanslutning och försök igen.")
         return
 
+    # 🔹 Skriv ut rådata för felsökning
+    st.write("### Debug: Data Preview (första raderna)")
+    st.dataframe(data.head())
+
+    # 🔹 Säkerställ att Open, High, Low och Close finns
+    missing_cols = [col for col in ["Open", "High", "Low", "Close"] if col not in data.columns]
+    if missing_cols:
+        st.error(f"❌ Följande viktiga kolumner saknas: {missing_cols}. Kan inte rita Candlestick-graf.")
+        return
+
     # 🔹 Lägg till MA20
     data["MA20"] = data["Close"].rolling(window=20).mean()
 
@@ -26,7 +36,7 @@ def show():
     # 🔹 Skapa Candlestick-graf
     fig = go.Figure()
 
-    # 📌 Candlestick med korrekt OHLC-data
+    # 📌 Candlestick med OHLC-data
     fig.add_trace(go.Candlestick(
         x=data.index,
         open=data["Open"],
@@ -98,7 +108,7 @@ def show():
     data_sorted = data[::-1]
 
     # 🔹 Visa tabellen korrekt
-    required_cols = ["Date", "Close", "High", "Low", "Open", "Volume", "MA20"]
+    required_cols = ["Close", "High", "Low", "Open", "Volume", "MA20"]
     available_cols = [col for col in required_cols if col in data_sorted.columns]
 
     if available_cols:
