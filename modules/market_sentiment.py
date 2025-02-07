@@ -10,15 +10,15 @@ def show():
     ticker = "QQQ"
     data = yf.download(ticker, start="1999-03-10")
 
-    # 🔹 Kontrollera att data laddats korrekt
+    # 🔹 Kontrollera om data laddades in korrekt
     if data.empty:
-        st.error("❌ Ingen data kunde hämtas för QQQ. Kolla din internetanslutning.")
+        st.error("❌ Ingen data kunde hämtas för QQQ. Kolla internetanslutning och försök igen.")
         return
 
-    # 🔹 Säkra kolumnnamn
-    data = data.rename(columns=lambda x: x.strip())  # Tar bort eventuella mellanslag
+    # 🔹 Säkra att alla kolumnnamn är korrekta
+    data = data.rename(columns=lambda x: x.strip())  # Tar bort onödiga mellanslag
 
-    # 🔹 Beräkna MA20
+    # 🔹 Lägg till MA20
     if "Close" in data.columns:
         data["MA20"] = data["Close"].rolling(window=20).mean()
     else:
@@ -94,10 +94,10 @@ def show():
     # 🔹 Vänd tabellen (nyaste datum överst)
     data_sorted = data[::-1]
 
-    # 🔹 Skriv ut kolumnnamn för debugging
-    st.write("Kolumner i data_sorted:", list(data_sorted.columns))
+    # 🔹 Debug: Visa faktiska kolumnnamn
+    st.write("Data Sorted - Faktiska kolumner:", list(data_sorted.columns))
 
-    # 🔹 Visa tabellen om kolumnerna finns
+    # 🔹 Kontrollera att alla nödvändiga kolumner finns innan visning
     required_cols = ["Close", "High", "Low", "Open", "Volume", "MA20"]
     available_cols = [col for col in required_cols if col in data_sorted.columns]
 
@@ -108,5 +108,5 @@ def show():
             width=1200
         )
     else:
-        st.error("❌ Ingen data tillgänglig för tabellen.")
+        st.error("❌ Ingen data tillgänglig för tabellen. Kolla kolumnnamnen ovan.")
 
