@@ -10,7 +10,7 @@ def show():
     ticker = "QQQ"
     data = yf.download(ticker, start="1999-03-10")
 
-    # 🔹 Kontrollera om data laddades in korrekt
+    # 🔹 Kontrollera att data hämtas korrekt
     if data.empty:
         st.error("❌ Ingen data kunde hämtas för QQQ. Kolla internetanslutning och försök igen.")
         return
@@ -26,33 +26,33 @@ def show():
     # 🔹 Skapa Candlestick-graf
     fig = go.Figure()
 
-    # 📌 Candlestick med färger (grön = upp, röd = ner)
+    # 📌 Candlestick med korrekt OHLC-data
     fig.add_trace(go.Candlestick(
         x=data.index,
         open=data["Open"],
         high=data["High"],
         low=data["Low"],
         close=data["Close"],
-        increasing=dict(line=dict(color="green")),
-        decreasing=dict(line=dict(color="red")),
+        increasing=dict(line=dict(color="green"), fillcolor="green"),
+        decreasing=dict(line=dict(color="red"), fillcolor="red"),
         name="Candlestick"
     ))
 
-    # 📌 Lägg till MA20 (blå linje)
+    # 📌 Lägg till MA20 som blå linje
     fig.add_trace(go.Scatter(
         x=data.index, 
         y=data["MA20"], 
         mode="lines", 
-        line=dict(color="blue", width=2.5),
+        line=dict(color="blue", width=2),
         name="MA20"
     ))
 
-    # 📌 Lägg till cykeltoppar & bottnar som trianglar
+    # 📌 Lägg till cykeltoppar och bottnar
     fig.add_trace(go.Scatter(
         x=data.index[data["Cycle Peak"]], 
         y=data["High"][data["Cycle Peak"]], 
         mode="markers",
-        marker=dict(color="red", size=8, symbol="triangle-up"),
+        marker=dict(color="red", size=10, symbol="triangle-up"),
         name="Topp"
     ))
 
@@ -60,11 +60,11 @@ def show():
         x=data.index[data["Cycle Bottom"]], 
         y=data["Low"][data["Cycle Bottom"]], 
         mode="markers",
-        marker=dict(color="blue", size=8, symbol="triangle-down"),
+        marker=dict(color="blue", size=10, symbol="triangle-down"),
         name="Botten"
     ))
 
-    # 🔹 Anpassa grafens layout för en mer "TradingView-lik" look
+    # 🔹 Layout-inställningar för en tydlig graf
     fig.update_layout(
         title="QQQ Candlestick Chart med MA20 & Cykler",
         xaxis_title="Datum",
@@ -94,7 +94,7 @@ def show():
     # 🔹 Visa grafen i Streamlit
     st.plotly_chart(fig, use_container_width=True)
 
-    # 🔹 Vänd tabellen (nyaste datum överst)
+    # 🔹 Sortera data (nyaste datum överst)
     data_sorted = data[::-1]
 
     # 🔹 Visa tabellen korrekt
