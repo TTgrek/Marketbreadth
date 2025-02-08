@@ -15,13 +15,19 @@ def fetch_data():
             print("❌ Ingen data hämtades från Yahoo Finance!")
             return pd.DataFrame()
 
+        # Återställ index så att datumet blir en kolumn
         data.reset_index(inplace=True)
+        print("Kolumner efter reset_index:", list(data.columns))
 
-        # 🔹 Om kolumnnamnen är MultiIndex, ta bara den sista nivån
+        # Om data har MultiIndex, platta ut den
         if isinstance(data.columns, pd.MultiIndex):
-            data.columns = [col[1] if col[1] else col[0] for col in data.columns]
+            data.columns = [
+                col[1] if isinstance(col, tuple) and col[1] != "" else col[0]
+                for col in data.columns
+            ]
+        print("Kolumner efter eventuell plattning:", list(data.columns))
 
-        # 🔹 Fixar felaktiga kolumnnamn (t.ex. om de bara innehåller "QQQ")
+        # Om det behövs, justera kolumnnamnen med ett rename_dict
         rename_dict = {
             "Date": "Date",
             "Open": "Open",
@@ -33,7 +39,7 @@ def fetch_data():
         }
         data.rename(columns=rename_dict, inplace=True)
 
-        # Kontrollera om "Close" finns, annars printa ut vilka kolumner som finns
+        # Kontrollera att "Close" finns i datan
         if "Close" not in data.columns:
             print(f"❌ 'Close' saknas i datan! Här är kolumnerna: {list(data.columns)}")
             return pd.DataFrame()
@@ -41,17 +47,18 @@ def fetch_data():
         # Lägg till indikatorer
         data["MA20"] = data["Close"].rolling(window=20).mean()
         data["Cycle Peak"] = np.where(
-            (data["High"] == data["High"].rolling(50, center=True).max()), 
-            data["High"], 
+            data["High"] == data["High"].rolling(window=50, center=True).max(),
+            data["High"],
             np.nan
         )
         data["Cycle Bottom"] = np.where(
-            (data["Low"] == data["Low"].rolling(50, center=True).min()), 
-            data["Low"], 
+            data["Low"] == data["Low"].rolling(window=50, center=True).min(),
+            data["Low"],
             np.nan
         )
 
-        return data.dropna(subset=["Close"])  # Ta bort eventuella NaN-värden
+        # Ta bort rader där "Close" är NaN (om det finns några)
+        return data.dropna(subset=["Close"])
 
     except Exception as e:
         print(f"⚠️ Fel vid hämtning av data: {e}")
@@ -59,8 +66,9 @@ def fetch_data():
 
 # 🔹 Hämta data
 data = fetch_data()
+print("Första raderna i data:\n", data.head())
 
-# 🔹 Funktion för att skapa candlestick-graf
+# 🔹 Funktion för att skapa candlestick-graf med Plotly
 def create_candlestick_chart(data):
     if data.empty:
         return go.Figure()
