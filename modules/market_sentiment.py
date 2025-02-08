@@ -7,14 +7,13 @@ import plotly.graph_objects as go
 @st.cache_data
 def fetch_data():
     ticker = "QQQ"
-    
+
     try:
         data = yf.download(ticker, start="1999-03-10")
     except Exception as e:
         st.error(f"❌ Fel vid hämtning av data från Yahoo Finance: {e}")
         return None
 
-    # 🔹 Kontrollera om data hämtades korrekt
     if data is None or data.empty:
         st.error("❌ Ingen data hämtades. Kontrollera anslutningen till Yahoo Finance.")
         return None
