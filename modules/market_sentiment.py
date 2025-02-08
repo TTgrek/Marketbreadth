@@ -14,11 +14,16 @@ def fetch_data():
 
         data.reset_index(inplace=True)
 
-        # 🔹 Fixar problem med att Yahoo Finance ibland lägger "Ticker" i headers
+        # 🔹 Hantera problem där Yahoo Finance skapar extra kolumnnivå
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.droplevel(0)  # Ta bort översta header-raden
 
-        # Kolla att "Close" finns
+        # 🔹 Rätta kolumnnamn om de har blivit omdöpta av yfinance
+        correct_columns = ["Date", "Open", "High", "Low", "Close", "Adj Close", "Volume"]
+        if len(data.columns) == len(correct_columns):
+            data.columns = correct_columns
+
+        # Kontrollera om "Close" nu finns
         if "Close" not in data.columns:
             print("❌ 'Close' saknas i datan! Här är kolumnerna:", data.columns)
             return pd.DataFrame()
@@ -27,7 +32,7 @@ def fetch_data():
         data["MA20"] = data["Close"].rolling(window=20).mean()
         data["Cycle Peak"] = np.where((data["High"] == data["High"].rolling(50, center=True).max()), data["High"], np.nan)
         data["Cycle Bottom"] = np.where((data["Low"] == data["Low"].rolling(50, center=True).min()), data["Low"], np.nan)
-        
+
         return data.dropna(subset=["Close"])  # Ta bort eventuella NaN-värden
 
     except Exception as e:
