@@ -103,7 +103,7 @@ data = fetch_data()
 def create_candlestick_chart(data):
     fig = go.Figure()
     
-    # Candlestick-spår
+    # Candlestick-spår – vi visar endast datum och Close när man hovrar
     fig.add_trace(go.Candlestick(
         x=data["Date"],
         open=data["Open"],
@@ -112,38 +112,41 @@ def create_candlestick_chart(data):
         close=data["Close"],
         increasing_line_color="green",
         decreasing_line_color="red",
-        name="Candlesticks"
+        name="Candlesticks",
+        hoverinfo="x+close"
     ))
     
-    # MA20-linje (tunn linje)
+    # MA20-linje med egen hover-template
     fig.add_trace(go.Scatter(
         x=data["Date"],
         y=data["MA20"],
         mode="lines",
         line=dict(color="blue", width=1),
-        name="MA20"
+        name="MA20",
+        hovertemplate="MA20: %{y}<extra></extra>"
     ))
     
-    # Cycle Bottom – markeras med gröna trianglar
+    # Cycle Bottom – markeras med gröna trianglar med egen hover-template
     fig.add_trace(go.Scatter(
         x=data["Date"],
         y=data["Cycle Bottom"],
         mode="markers",
         marker=dict(symbol="triangle-up", size=10, color="green"),
-        name="Cycle Bottom"
+        name="Cycle Bottom",
+        hovertemplate="Cycle Bottom: %{y}<extra></extra>"
     ))
     
-    # Cycle Top – markeras med röda trianglar
+    # Cycle Top – markeras med röda trianglar med egen hover-template
     fig.add_trace(go.Scatter(
         x=data["Date"],
         y=data["Cycle Top"],
         mode="markers",
         marker=dict(symbol="triangle-down", size=10, color="red"),
-        name="Cycle Top"
+        name="Cycle Top",
+        hovertemplate="Cycle Top: %{y}<extra></extra>"
     ))
     
     # --- Bearbeta vändpunkterna för att "ta ut" tidigare vändpunkter ---
-    # Gruppera på varandra följande vändpunkter av samma typ och behåll den sista
     turning_points = data[(~data["Cycle Bottom"].isna()) | (~data["Cycle Top"].isna())].copy()
     if not turning_points.empty:
         turning_points["Type"] = turning_points.apply(
@@ -151,10 +154,9 @@ def create_candlestick_chart(data):
         turning_points["Group"] = (turning_points["Type"] != turning_points["Type"].shift()).cumsum()
         filtered_tp = turning_points.groupby("Group").last().reset_index()
         
-        # Beräkna cykellängder med de filtrerade vändpunkterna
         tp_list = filtered_tp
-        up_cycles = []   # Uppgångscykel: från botten till nästa topp
-        down_cycles = [] # Nedgångscykel: från topp till nästa botten
+        up_cycles = []   # Uppgång: från botten till nästa topp
+        down_cycles = [] # Nedgång: från topp till nästa botten
         for i in range(len(tp_list) - 1):
             current_type = tp_list.loc[i, "Type"]
             next_type = tp_list.loc[i+1, "Type"]
@@ -168,7 +170,7 @@ def create_candlestick_chart(data):
         avg_up = np.mean(up_cycles) if up_cycles else None
         avg_down = np.mean(down_cycles) if down_cycles else None
         
-        # Aktuell cykeldag: antal dagar sedan den senaste vändpunkten (enligt de filtrerade)
+        # Aktuell cykeldag: antal dagar sedan den senaste vändpunkten
         last_turning = tp_list.iloc[-1]
         current_date = data.iloc[-1]["Date"]
         current_cycle_day = (current_date - last_turning["Date"]).days + 1
@@ -181,13 +183,21 @@ def create_candlestick_chart(data):
         "<br>Dag i cykeln: " + (f"{current_cycle_day}" if current_cycle_day is not None else "N/A")
     )
     
+    # Uppdatera layout med spikelinjer (crosshair) vid hover och ta bort rangeslidern
     fig.update_layout(
         title="Market Sentiment - QQQ",
         xaxis_title="Datum",
         yaxis_title="Pris",
         dragmode="pan",
+        hovermode="x",  # Aktivera spikelinje på x-axeln vid hover
         template="plotly_white",
         xaxis=dict(
+            showspikes=True,
+            spikemode="across",
+            spikesnap="cursor",
+            spikethickness=1,
+            spikecolor="gray",
+            rangeslider_visible=False,
             rangeselector=dict(
                 buttons=[
                     dict(count=1, label="1m", step="month", stepmode="backward"),

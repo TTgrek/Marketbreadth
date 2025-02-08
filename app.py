@@ -24,17 +24,17 @@ def display_page(pathname):
     else:
         return html.H1("404 - Sida hittades inte", style={"textAlign": "center"})
 
-# Clientside callback för att uppdatera höjden på containern baserat på musrörelser
+# Clientside callback med extra kontroller för undefined värden
 app.clientside_callback(
     """
     function(event, storeData, currentStyle) {
-        if (!storeData) {
+        if (typeof storeData === "undefined" || storeData === null) {
             storeData = {"resizing": false, "startY": null, "startHeight": 800};
         }
-        if (!currentStyle) {
+        if (typeof currentStyle === "undefined" || currentStyle === null) {
             currentStyle = {"height": "800px"};
         }
-        if (!event) {
+        if (typeof event === "undefined" || event === null || typeof event.type === "undefined") {
             return [currentStyle, storeData];
         }
         let newStore = Object.assign({}, storeData);
