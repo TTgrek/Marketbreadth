@@ -11,8 +11,8 @@ import plotly.graph_objects as go
 
 def fetch_data():
     ticker = "QQQ"
-    # Hämtar data för perioden 2024-01-01 till 2025-12-31 (anpassa vid behov)
-    data = yf.download(ticker, start="2024-01-01", end="2025-12-31")
+    # Hämtar data för perioden 1999-03-10 till 2025-12-31 (anpassa vid behov)
+    data = yf.download(ticker, start="1999-03-10", end="2025-12-31")
     data.reset_index(inplace=True)
     
     # Om datan har MultiIndex plattas den ut
