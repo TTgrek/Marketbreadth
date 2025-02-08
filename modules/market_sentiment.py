@@ -1,16 +1,18 @@
+# modules/market_sentiment.py
+
 import dash
 from dash import dcc, html
 import plotly.graph_objects as go
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from dash_resizable import Resizable  # Tredjepartskomponent för resizable containers
+from dash_extensions import EventListener  # Komponent för att lyssna på DOM-händelser
 
 def fetch_data():
     ticker = "QQQ"
     data = yf.download(ticker, start="1999-03-10")
     data.reset_index(inplace=True)
-    # Hantera MultiIndex om nödvändigt
+    # Om data har MultiIndex: platta ut den
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = [col[0] if isinstance(col, tuple) else col for col in data.columns]
     # Beräkna MA20 (20-dagars glidande medelvärde)
@@ -94,42 +96,39 @@ def create_candlestick_chart(data):
     )
     return fig
 
-# Här definierar vi layouten – vi omsluter grafen med Resizable
+# Startvärde på grafens höjd (i pixlar)
+initial_height = 800
+
+# Layouten innehåller en dcc.Store för att spara resizestatus samt en EventListener-omslutande container.
 layout = html.Div([
     html.H1("Market Sentiment", style={"textAlign": "center"}),
-    Resizable(
-        id="resizable-graph-container",
-        children=[
-            dcc.Graph(
-                id="candlestick-graph",
-                figure=create_candlestick_chart(data),
-                config={
-                    'displayModeBar': True,
-                    'scrollZoom': True,
-                    'doubleClick': 'reset'
-                },
-                style={"width": "100%", "height": "100%"}  # Grafen fyller containern
-            )
-        ],
-        style={"width": "80%", "margin": "auto", "border": "1px solid #ccc"},
-        # Inställningar för resizable (endast vertikal resize aktiverat)
-        resizableProps={
-            "minHeight": 500,
-            "maxHeight": 1200,
-            "defaultHeight": 800,
-            "defaultWidth": 800,
-            "lockAspectRatio": False,
-            # Aktivera endast nedre kant för att ändra höjden
-            "enable": {
-                "top": False,
-                "right": False,
-                "bottom": True,
-                "left": False,
-                "topRight": False,
-                "bottomRight": True,
-                "bottomLeft": True,
-                "topLeft": False
+    # Store för att spara information om påbörjad dragning
+    dcc.Store(id="resize-store", data={"resizing": False, "startY": None, "startHeight": initial_height}),
+    # EventListener lyssnar på mus-händelser (mousedown, mousemove, mouseup)
+    EventListener(
+        id="resizable-container",
+        events=["mousedown", "mousemove", "mouseup"],
+        children=html.Div(
+            id="graph-container",
+            children=[
+                dcc.Graph(
+                    id="candlestick-graph",
+                    figure=create_candlestick_chart(data),
+                    config={
+                        "displayModeBar": True,
+                        "scrollZoom": True,
+                        "doubleClick": "reset"
+                    },
+                    style={"width": "100%", "height": "100%"}  # Grafen fyller containern
+                )
+            ],
+            style={
+                "height": f"{initial_height}px",
+                "width": "80%",
+                "margin": "auto",
+                "border": "1px solid #ccc",
+                "position": "relative"
             }
-        }
+        )
     )
 ])
