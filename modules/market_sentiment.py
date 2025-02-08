@@ -5,7 +5,7 @@ import dash
 from dash import dcc, html
 import plotly.graph_objects as go
 
-# 🔹 Hämta data från Yahoo Finance och fixa formatet
+# 🔹 Funktion för att hämta och förbereda data från Yahoo Finance
 def fetch_data():
     ticker = "QQQ"
     try:
@@ -17,18 +17,18 @@ def fetch_data():
 
         data.reset_index(inplace=True)
 
-        # 🔹 Fixar problem med extra headers från Yahoo Finance
+        # 🔹 Fixar problem med MultiIndex-kolumner från Yahoo Finance
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.droplevel(0)
 
-        # 🔹 Rätta kolumnnamn om de har blivit fel
-        correct_columns = ["Date", "Open", "High", "Low", "Close", "Adj Close", "Volume"]
-        if len(data.columns) == len(correct_columns):
-            data.columns = correct_columns
+        # 🔹 Se till att rätt kolumnnamn används
+        expected_columns = ["Date", "Open", "High", "Low", "Close", "Adj Close", "Volume"]
+        if len(data.columns) == len(expected_columns):
+            data.columns = expected_columns
 
-        # Kontrollera om "Close" finns
+        # Kontrollera om "Close" finns, annars printa ut fel
         if "Close" not in data.columns:
-            print("❌ 'Close' saknas i datan! Här är kolumnerna:", data.columns)
+            print(f"❌ 'Close' saknas i datan! Här är kolumnerna: {list(data.columns)}")
             return pd.DataFrame()
 
         # Lägg till indikatorer
@@ -45,8 +45,11 @@ def fetch_data():
 # 🔹 Hämta data
 data = fetch_data()
 
-# 🔹 Skapa en candlestick-graf med Plotly
+# 🔹 Funktion för att skapa candlestick-graf
 def create_candlestick_chart(data):
+    if data.empty:
+        return go.Figure()
+
     fig = go.Figure()
 
     # Candlestick-graf
