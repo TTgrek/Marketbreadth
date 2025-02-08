@@ -1,7 +1,7 @@
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
-from modules import market_sentiment
+from modules import market_sentiment, sector_leaders
 
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 server = app.server
@@ -11,19 +11,18 @@ app.layout = html.Div([
     html.Div(id="page-content")
 ])
 
+# Navigation mellan sidor
 @app.callback(
     Output("page-content", "children"),
     [Input("url", "pathname")]
 )
 def display_page(pathname):
-    if pathname in ["/", "/market_sentiment"]:
-        # Visa candlestick-chart med marknadsfasindelning
-        return html.Div([
-            html.H1("Market Cycle - QQQ", style={"textAlign": "center"}),
-            dcc.Graph(id="cycle-chart", figure=market_sentiment.candlestick_chart)
-        ])
+    if pathname == "/market_sentiment":
+        return market_sentiment.layout
+    elif pathname == "/sector_leaders":
+        return sector_leaders.layout
     else:
-        return html.H1("404 - Page Not Found", style={"textAlign": "center"})
+        return html.H1("404 - Sida hittades inte", style={"textAlign": "center"})
 
 if __name__ == "__main__":
     app.run_server(debug=True)
