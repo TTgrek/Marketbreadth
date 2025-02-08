@@ -1,40 +1,29 @@
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
+from modules import market_sentiment
 
-# 🔹 Importera modulerna
-from modules import market_sentiment, risk_on_off, sector_leaders, stats
-
-# 🔹 Skapa Dash-appen
+# Skapa Dash-appen
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
-server = app.server
+server = app.server  # Behövs för att köra appen online
 
-# 🔹 Layout med navigeringsmeny
+# Layout för navigation
 app.layout = html.Div([
-    dcc.Tabs(id="tabs", value="market_sentiment", children=[
-        dcc.Tab(label="Market Sentiment", value="market_sentiment"),
-        dcc.Tab(label="Risk ON/OFF", value="risk_on_off"),
-        dcc.Tab(label="Sektor Ledare", value="sector_leaders"),
-        dcc.Tab(label="Statistik", value="stats"),
-    ]),
-    html.Div(id="content")
+    dcc.Location(id="url", refresh=False),
+    html.Div(id="page-content")
 ])
 
-# 🔹 Callback för att växla mellan moduler
+# Funktion för att hantera navigation mellan moduler
 @app.callback(
-    Output("content", "children"),
-    Input("tabs", "value")
+    Output("page-content", "children"),
+    [Input("url", "pathname")]
 )
-def display_page(tab):
-    if tab == "market_sentiment":
+def display_page(pathname):
+    if pathname == "/" or pathname == "/market_sentiment":
         return market_sentiment.layout
-    elif tab == "risk_on_off":
-        return risk_on_off.layout
-    elif tab == "sector_leaders":
-        return sector_leaders.layout
-    elif tab == "stats":
-        return stats.layout
+    else:
+        return html.H1("404 - Sida hittades inte", style={"textAlign": "center"})
 
-# 🔹 Starta appen
+# Starta appen
 if __name__ == "__main__":
     app.run_server(debug=True)
