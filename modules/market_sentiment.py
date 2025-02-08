@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 @st.cache_data
 def fetch_data():
     ticker = "QQQ"
+    
     try:
         data = yf.download(ticker, start="1999-03-10")
     except Exception as e:
@@ -29,11 +30,12 @@ def fetch_data():
     missing_cols = [col for col in numeric_cols if col not in data.columns]
     if missing_cols:
         st.error(f"❌ Saknade kolumner i datan: {missing_cols}")
+        st.write("Kolumner i `data`:", list(data.columns))
         return None
 
     # 🔹 Konvertera numeriska kolumner och hantera NaN
     for col in numeric_cols:
-        if col in data:
+        if col in data.columns:  # Säkerställ att kolumnen finns
             data[col] = pd.to_numeric(data[col], errors="coerce").fillna(0)
 
     # 🔹 Beräkna MA20
