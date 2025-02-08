@@ -6,13 +6,13 @@ import numpy as np
 import plotly.graph_objects as go
 
 #############################
-# 📊 Data & Preprocessing
+# Data & Preprocessing
 #############################
 
 def fetch_data():
     ticker = "QQQ"
-    # Hämtar data från 1999-03-10 så vi får hela historiken
-    data = yf.download(ticker, start="1999-03-10")
+    # Hämtar data för perioden 2024-01-01 till 2025-12-31 (anpassa vid behov)
+    data = yf.download(ticker, start="2024-01-01", end="2025-12-31")
     data.reset_index(inplace=True)
     
     # Om datan har MultiIndex plattas den ut
@@ -40,6 +40,7 @@ def process_market_phase(data):
     data["MarketPhase"] = None   # "uptrend", "downtrend", "choppy" eller "undefined"
     data["CycleDay"] = 0         # Antal dagar i den aktuella fasen
     data["CycleEvent"] = None    # "top" (vid uptrend) eller "bottom" (vid downtrend)
+    # Här skapar vi även de saknade kolumnerna för att spara det faktiska Close-värdet vid vändpunkten
     data["Cycle Top"] = np.nan
     data["Cycle Bottom"] = np.nan
 
@@ -96,13 +97,19 @@ data = fetch_data()
 data = process_market_phase(data)
 
 #######################################
-# 🔥 Interaktiv Candlestick Chart med marknadsfaser
+# Visualization: Candlestick Chart med fasmarkeringar
 #######################################
 
 def create_candlestick_chart(data):
     fig = go.Figure()
-
-    # Lägger till Candlestick-graf
+    
+    # Skapa en lista med egen hovertext för candlesticks (visar datum och Close)
+    hover_text = [
+        f"Date: {d.strftime('%Y-%m-%d')}<br>Close: {c:.2f}"
+        for d, c in zip(data["Date"], data["Close"])
+    ]
+    
+    # Lägg till candlestick-spår
     fig.add_trace(go.Candlestick(
         x=data["Date"],
         open=data["Open"],
@@ -111,84 +118,103 @@ def create_candlestick_chart(data):
         close=data["Close"],
         increasing_line_color="green",
         decreasing_line_color="red",
-        name="Candlesticks"
+        name="Candlesticks",
+        hovertext=hover_text,
+        hoverinfo="text"
     ))
-
-    # MA20-linje
+    
+    # Lägg till MA20-linje
     fig.add_trace(go.Scatter(
         x=data["Date"],
         y=data["MA20"],
         mode="lines",
         line=dict(color="blue", width=1),
-        name="MA20"
+        name="MA20",
+        hovertemplate="MA20: %{y:.2f}<extra></extra>"
     ))
-
-    # Cycle Top (🔻)
+    
+    # Lägg till Cycle Top och Cycle Bottom marker
     fig.add_trace(go.Scatter(
         x=data["Date"],
         y=data["Cycle Top"],
         mode="markers",
         marker=dict(symbol="triangle-down", size=10, color="red"),
-        name="Cycle Top"
+        name="Cycle Top",
+        hovertemplate="Cycle Top: %{y:.2f}<extra></extra>"
     ))
-
-    # Cycle Bottom (🔺)
     fig.add_trace(go.Scatter(
         x=data["Date"],
         y=data["Cycle Bottom"],
         mode="markers",
         marker=dict(symbol="triangle-up", size=10, color="green"),
-        name="Cycle Bottom"
+        name="Cycle Bottom",
+        hovertemplate="Cycle Bottom: %{y:.2f}<extra></extra>"
     ))
-
-    # 📌 Lägg till bakgrundsfärger för marknadsfaser
+    
+    # Lägg till bakgrundsmarkeringar (vrects) för de olika marknadsfaserna
     data["PhaseGroup"] = (data["MarketPhase"] != data["MarketPhase"].shift()).cumsum()
     for _, group in data.groupby("PhaseGroup"):
         phase = group["MarketPhase"].iloc[0]
         start_date = group["Date"].iloc[0]
         end_date = group["Date"].iloc[-1]
         if phase == "uptrend":
-            color = "rgba(144,238,144,0.3)"   # ljusgrön
+            color = "rgba(144,238,144,0.5)"   # ljusgrön med hög opacitet
         elif phase == "downtrend":
-            color = "rgba(255,182,193,0.3)"   # ljusröd
+            color = "rgba(255,182,193,0.5)"   # ljusröd med hög opacitet
         elif phase == "choppy":
-            color = "rgba(211,211,211,0.3)"   # ljusgrå
+            color = "rgba(211,211,211,0.5)"   # ljusgrå med hög opacitet
         else:
             color = "rgba(255,255,255,0)"
         fig.add_vrect(
             x0=start_date, x1=end_date,
             fillcolor=color, opacity=0.5, layer="below", line_width=0
         )
-
-    # 📌 TradingView-liknande interaktivitet
+    
+    # Lägg till annotation med aktuell fas och CycleDay
+    latest = data.iloc[-1]
+    annotation_text = (
+        f"Phase: {latest['MarketPhase']}<br>"
+        f"CycleDay: {latest['CycleDay']}<br>"
+        f"Event: {latest['CycleEvent'] if pd.notna(latest['CycleEvent']) else ''}"
+    )
+    
     fig.update_layout(
-        title="Market Sentiment - QQQ",
-        xaxis_title="Datum",
-        yaxis_title="Pris",
+        title="Market Cycle - QQQ",
+        xaxis_title="Date",
+        yaxis_title="Price",
         dragmode="pan",
-        hovermode="x unified",  # 🔥 Visar alla värden i en vertikal linje vid hover
+        hovermode="x",  # Visar en vertikal linje (crosshair) vid hover
         template="plotly_white",
         xaxis=dict(
-            rangeslider_visible=True,  # ✅ Möjlighet att scrolla i tid
-            rangeselector=dict(  # 🔥 Snabbval för zoom
+            rangeslider_visible=False,  # Ta bort rangeslider
+            rangeselector=dict(
                 buttons=[
                     dict(count=1, label="1m", step="month", stepmode="backward"),
                     dict(count=3, label="3m", step="month", stepmode="backward"),
                     dict(count=6, label="6m", step="month", stepmode="backward"),
                     dict(count=1, label="YTD", step="year", stepmode="todate"),
                     dict(count=1, label="1y", step="year", stepmode="backward"),
-                    dict(step="all", label="All")
+                    dict(step="all")
                 ]
             )
-        )
+        ),
+        annotations=[
+            {
+                "xref": "paper",
+                "yref": "paper",
+                "x": 1,
+                "y": 1,
+                "xanchor": "right",
+                "yanchor": "top",
+                "text": annotation_text,
+                "font": {"size": 12, "color": "black"},
+                "bgcolor": "white",
+                "bordercolor": "black",
+                "borderwidth": 1
+            }
+        ]
     )
-
     return fig
 
-# Skapa figuren
+# För visualisering: skapa figuren
 candlestick_chart = create_candlestick_chart(data)
-
-layout = html.Div([
-    html.H1("Market Sentiment - QQQ", style={"textAlign": "center"}),
-    dcc.Graph(id="cycle-chart", figure=candlestick_chart)
-])
