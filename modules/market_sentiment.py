@@ -215,6 +215,35 @@ def create_candlestick_chart(data):
         ]
     )
     return fig
+def get_market_trend():
+    """
+    Analyserar indextrenden och returnerar en poäng mellan 0-30.
+    - Använder SMA50, SMA200 och prisets position relativt dessa.
+    - Trendpoäng baseras på hur starkt index befinner sig i en uppåtgående trend.
+    """
+    import yfinance as yf
+
+    # 🔹 Hämta SPY som proxy för marknaden
+    spy = yf.download("SPY", period="6mo", interval="1d")["Close"]
+
+    if spy.empty:
+        return 0  # Om datan saknas, returnera 0 poäng
+
+    # 🔹 Beräkna glidande medelvärden
+    sma50 = spy.rolling(window=50).mean().iloc[-1]
+    sma200 = spy.rolling(window=200).mean().iloc[-1]
+    price = spy.iloc[-1]
+
+    # 🔹 Poängsystem baserat på SMA och pris
+    score = 0
+    if price > sma50:
+        score += 10  # Priset över SMA50 → stark trend
+    if price > sma200:
+        score += 10  # Priset över SMA200 → långsiktig bulltrend
+    if sma50 > sma200:
+        score += 10  # SMA50 över SMA200 → Golden Cross = stark trend
+
+    return score
 
 # För visualisering: skapa figuren
 candlestick_chart = create_candlestick_chart(data)
