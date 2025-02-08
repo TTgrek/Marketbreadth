@@ -218,3 +218,7 @@ def create_candlestick_chart(data):
 
 # För visualisering: skapa figuren
 candlestick_chart = create_candlestick_chart(data)
+layout = html.Div([
+    html.H1("Market Sentiment", style={"textAlign": "center"}),
+    dcc.Graph(id="cycle-chart", figure=candlestick_chart)
+])
