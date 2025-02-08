@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 def fetch_data():
     ticker = "QQQ"
     try:
-        # Hämta data
+        # Hämta data från Yahoo Finance
         data = yf.download(ticker, start="1999-03-10")
         if data.empty:
             print("❌ Ingen data hämtades från Yahoo Finance!")
@@ -17,24 +17,39 @@ def fetch_data():
 
         data.reset_index(inplace=True)
 
-        # 🔹 Fixar problem med MultiIndex-kolumner från Yahoo Finance
+        # 🔹 Om kolumnnamnen är MultiIndex, ta bara den sista nivån
         if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.droplevel(0)
+            data.columns = [col[1] if col[1] else col[0] for col in data.columns]
 
-        # 🔹 Se till att rätt kolumnnamn används
-        expected_columns = ["Date", "Open", "High", "Low", "Close", "Adj Close", "Volume"]
-        if len(data.columns) == len(expected_columns):
-            data.columns = expected_columns
+        # 🔹 Fixar felaktiga kolumnnamn (t.ex. om de bara innehåller "QQQ")
+        rename_dict = {
+            "Date": "Date",
+            "Open": "Open",
+            "High": "High",
+            "Low": "Low",
+            "Close": "Close",
+            "Adj Close": "Adj Close",
+            "Volume": "Volume"
+        }
+        data.rename(columns=rename_dict, inplace=True)
 
-        # Kontrollera om "Close" finns, annars printa ut fel
+        # Kontrollera om "Close" finns, annars printa ut vilka kolumner som finns
         if "Close" not in data.columns:
             print(f"❌ 'Close' saknas i datan! Här är kolumnerna: {list(data.columns)}")
             return pd.DataFrame()
 
         # Lägg till indikatorer
         data["MA20"] = data["Close"].rolling(window=20).mean()
-        data["Cycle Peak"] = np.where((data["High"] == data["High"].rolling(50, center=True).max()), data["High"], np.nan)
-        data["Cycle Bottom"] = np.where((data["Low"] == data["Low"].rolling(50, center=True).min()), data["Low"], np.nan)
+        data["Cycle Peak"] = np.where(
+            (data["High"] == data["High"].rolling(50, center=True).max()), 
+            data["High"], 
+            np.nan
+        )
+        data["Cycle Bottom"] = np.where(
+            (data["Low"] == data["Low"].rolling(50, center=True).min()), 
+            data["Low"], 
+            np.nan
+        )
 
         return data.dropna(subset=["Close"])  # Ta bort eventuella NaN-värden
 
