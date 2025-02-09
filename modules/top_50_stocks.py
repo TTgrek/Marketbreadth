@@ -15,7 +15,7 @@ def get_sp500_tickers():
     tables = pd.read_html(url)
     df = tables[0]
     tickers = df['Symbol'].tolist()
-    # Ändra t.ex. BRK.B till BRK-B (anpassat för Yahoo Finance)
+    # Omvandla t.ex. BRK.B till BRK-B (anpassat för Yahoo Finance)
     tickers = [ticker.replace('.', '-') for ticker in tickers]
     return tickers
 
@@ -40,7 +40,7 @@ INTERVAL_DAYS = {
 nyse = mcal.get_calendar("NYSE")
 
 # --------------------------------------------------
-# Funktion: Hämta data och beräkna avkastning för SP500-aktier
+# Funktion: Hämta data och beräkna avkastning för S&P 500-aktier
 # --------------------------------------------------
 def fetch_top_stocks_data(interval="6M"):
     print(f"\n📥 Hämtar top stocks data för {interval} från Yahoo Finance...")
@@ -89,7 +89,6 @@ def fetch_top_stocks_data(interval="6M"):
             continue
         if ticker_data.empty:
             continue
-        # Använd kolumnen "Close" för beräkning
         if "Close" not in ticker_data.columns:
             continue
         series = ticker_data["Close"].dropna()
@@ -110,10 +109,16 @@ def fetch_top_stocks_data(interval="6M"):
     return top50
 
 # --------------------------------------------------
+# Anpassad färgskala: Blått (låga värden) -> Grönt (höga värden)
+# --------------------------------------------------
+custom_color_scale = ["#0000FF", "#007FFF", "#00BFFF", "#00FF00"]
+
+# --------------------------------------------------
 # Bygg Dash-layouten för Top 50 Stocks
 # --------------------------------------------------
+# OBS: Vi använder ett unikt id "selected-interval-top-stocks" här
 layout = html.Div([
-    html.H1("Top 50 Stocks (Most Up)", style={"textAlign": "center"}),
+    html.H1("Top 50 Stocks (SPY)", style={"textAlign": "center"}),
     html.Div([
         html.Button("1D", id="btn-1D", n_clicks=0, style={"margin": "5px"}),
         html.Button("1V", id="btn-1V", n_clicks=0, style={"margin": "5px"}),
@@ -122,8 +127,12 @@ layout = html.Div([
         html.Button("6M", id="btn-6M", n_clicks=0, style={"margin": "5px"}),
         html.Button("12M", id="btn-12M", n_clicks=0, style={"margin": "5px"}),
     ], style={"display": "flex", "justifyContent": "center", "flexWrap": "wrap"}),
-    html.H3(id="selected-interval", style={"textAlign": "center"}),
-    dcc.Graph(id="top-stocks-graph")
+    html.H3(id="selected-interval-top-stocks", style={"textAlign": "center"}),
+    dcc.Loading(
+        id="loading-graph",
+        type="default",
+        children=[dcc.Graph(id="top-stocks-graph")]
+    )
 ])
 
 # --------------------------------------------------
@@ -132,13 +141,14 @@ layout = html.Div([
 def register_callbacks(app):
     @app.callback(
         [Output("top-stocks-graph", "figure"),
-         Output("selected-interval", "children")],
+         Output("selected-interval-top-stocks", "children")],
         [Input("btn-1D", "n_clicks"),
          Input("btn-1V", "n_clicks"),
          Input("btn-1M", "n_clicks"),
          Input("btn-3M", "n_clicks"),
          Input("btn-6M", "n_clicks"),
-         Input("btn-12M", "n_clicks")]
+         Input("btn-12M", "n_clicks")],
+        allow_duplicate=True
     )
     def update_top_stocks(n1, n1V, n1M, n3M, n6M, n12M):
         ctx = dash.callback_context
@@ -151,10 +161,15 @@ def register_callbacks(app):
         if top50.empty:
             fig = px.bar(title="Ingen data tillgänglig")
         else:
-            fig = px.bar(top50, x="Ticker", y="Return (%)", 
-                         text="Return (%)", color="Return (%)",
-                         color_continuous_scale="RdYlGn",
-                         title="Top 50 Stocks by Return")
+            fig = px.bar(
+                top50, 
+                x="Ticker", 
+                y="Return (%)", 
+                text="Return (%)", 
+                color="Return (%)",
+                color_continuous_scale=custom_color_scale,
+                title="Top 50 Stocks (SPY)"
+            )
             fig.update_traces(texttemplate="%{text:.2f}%", textposition="outside")
             fig.update_layout(xaxis_tickangle=-45, clickmode="event")
         return fig, f"Valt intervall: {interval}"
@@ -163,7 +178,6 @@ def register_callbacks(app):
 # Om modulen körs direkt (standalone)
 # --------------------------------------------------
 if __name__ == "__main__":
-    # Skapa en egen app-instans om modulen körs direkt
     app = dash.Dash(__name__)
     app.layout = layout
     register_callbacks(app)
