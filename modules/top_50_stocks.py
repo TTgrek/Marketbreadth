@@ -15,7 +15,7 @@ def get_sp500_tickers():
     tables = pd.read_html(url)
     df = tables[0]
     tickers = df['Symbol'].tolist()
-    # Ändra t.ex. BRK.B till BRK-B som ofta används av Yahoo Finance
+    # Ändra t.ex. BRK.B till BRK-B (anpassat för Yahoo Finance)
     tickers = [ticker.replace('.', '-') for ticker in tickers]
     return tickers
 
@@ -49,7 +49,7 @@ def fetch_top_stocks_data(interval="6M"):
     
     # Bestäm start- och slutdatum beroende på intervallet
     if interval == "1V":
-        # Hitta den senaste fredagen (weekday==4)
+        # Hitta den senaste fredagen (weekday == 4)
         friday_date = None
         for d in reversed(all_trading_days):
             if d.weekday() == 4:
@@ -58,7 +58,6 @@ def fetch_top_stocks_data(interval="6M"):
         if friday_date is None:
             print("❌ Kunde inte hitta en fredag.")
             return pd.DataFrame(columns=["Ticker", "Return (%)"])
-        # Hämta alla handelsdagar under samma ISO-vecka
         week_number = friday_date.isocalendar()[1]
         year = friday_date.year
         week_trading_days = [d for d in all_trading_days if d.isocalendar()[1] == week_number and d.year == year]
@@ -102,12 +101,8 @@ def fetch_top_stocks_data(interval="6M"):
             continue
         ret = (end_price - start_price) / start_price * 100
         returns[ticker] = ret
-        # Debug-utskrift (kan kommenteras ut)
-        # print(f"{ticker}: start {start_price:.2f}, end {end_price:.2f}, return {ret:.2f}%")
-    
     if not returns:
         return pd.DataFrame(columns=["Ticker", "Return (%)"])
-    
     df = pd.DataFrame({"Ticker": list(returns.keys()), "Return (%)": list(returns.values())})
     df.sort_values("Return (%)", ascending=False, inplace=True)
     top50 = df.head(50)
@@ -115,10 +110,8 @@ def fetch_top_stocks_data(interval="6M"):
     return top50
 
 # --------------------------------------------------
-# Bygg Dash-layouten
+# Bygg Dash-layouten för Top 50 Stocks
 # --------------------------------------------------
-app = dash.Dash(__name__, suppress_callback_exceptions=True)
-
 layout = html.Div([
     html.H1("Top 50 Stocks (Most Up)", style={"textAlign": "center"}),
     html.Div([
@@ -134,37 +127,44 @@ layout = html.Div([
 ])
 
 # --------------------------------------------------
-# Callback: Uppdatera diagrammet med top 50 aktier
+# Callback: Registrera callbacks med en funktion
 # --------------------------------------------------
-@app.callback(
-    [Output("top-stocks-graph", "figure"),
-     Output("selected-interval", "children")],
-    [Input("btn-1D", "n_clicks"),
-     Input("btn-1V", "n_clicks"),
-     Input("btn-1M", "n_clicks"),
-     Input("btn-3M", "n_clicks"),
-     Input("btn-6M", "n_clicks"),
-     Input("btn-12M", "n_clicks")]
-)
-def update_top_stocks(n1, n1V, n1M, n3M, n6M, n12M):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        interval = "6M"
-    else:
-        interval = ctx.triggered[0]["prop_id"].split(".")[0].replace("btn-", "")
-    
-    top50 = fetch_top_stocks_data(interval)
-    if top50.empty:
-        fig = px.bar(title="Ingen data tillgänglig")
-    else:
-        fig = px.bar(top50, x="Ticker", y="Return (%)", 
-                     text="Return (%)", color="Return (%)",
-                     color_continuous_scale="RdYlGn",
-                     title="Top 50 Stocks by Return")
-        fig.update_traces(texttemplate="%{text:.2f}%", textposition="outside")
-        fig.update_layout(xaxis_tickangle=-45, clickmode="event")
-    return fig, f"Valt intervall: {interval}"
+def register_callbacks(app):
+    @app.callback(
+        [Output("top-stocks-graph", "figure"),
+         Output("selected-interval", "children")],
+        [Input("btn-1D", "n_clicks"),
+         Input("btn-1V", "n_clicks"),
+         Input("btn-1M", "n_clicks"),
+         Input("btn-3M", "n_clicks"),
+         Input("btn-6M", "n_clicks"),
+         Input("btn-12M", "n_clicks")]
+    )
+    def update_top_stocks(n1, n1V, n1M, n3M, n6M, n12M):
+        ctx = dash.callback_context
+        if not ctx.triggered:
+            interval = "6M"
+        else:
+            interval = ctx.triggered[0]["prop_id"].split(".")[0].replace("btn-", "")
+        
+        top50 = fetch_top_stocks_data(interval)
+        if top50.empty:
+            fig = px.bar(title="Ingen data tillgänglig")
+        else:
+            fig = px.bar(top50, x="Ticker", y="Return (%)", 
+                         text="Return (%)", color="Return (%)",
+                         color_continuous_scale="RdYlGn",
+                         title="Top 50 Stocks by Return")
+            fig.update_traces(texttemplate="%{text:.2f}%", textposition="outside")
+            fig.update_layout(xaxis_tickangle=-45, clickmode="event")
+        return fig, f"Valt intervall: {interval}"
 
+# --------------------------------------------------
+# Om modulen körs direkt (standalone)
+# --------------------------------------------------
 if __name__ == "__main__":
+    # Skapa en egen app-instans om modulen körs direkt
+    app = dash.Dash(__name__)
     app.layout = layout
+    register_callbacks(app)
     app.run_server(debug=True)
