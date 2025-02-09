@@ -11,8 +11,8 @@ import plotly.graph_objects as go
 
 def fetch_data():
     ticker = "QQQ"
-    # Hämtar data för perioden 20242-01-01 till 2025-12-31 (anpassa vid behov)
-    data = yf.download(ticker, start="2022-01-01", end="2025-12-31")
+    # Hämtar data för perioden 2024-01-01 till 2025-12-31 (anpassa vid behov)
+    data = yf.download(ticker, start="2024-01-01", end="2025-12-31")
     data.reset_index(inplace=True)
     
     # Om datan har MultiIndex plattas den ut
@@ -40,7 +40,7 @@ def process_market_phase(data):
     data["MarketPhase"] = None   # "uptrend", "downtrend", "choppy" eller "undefined"
     data["CycleDay"] = 0         # Antal dagar i den aktuella fasen
     data["CycleEvent"] = None    # "top" (vid uptrend) eller "bottom" (vid downtrend)
-    # Här skapar vi även de saknade kolumnerna för att spara det faktiska Close-värdet vid vändpunkten
+    # Skapa även kolumner för att spara det faktiska Close-värdet vid vändpunkten
     data["Cycle Top"] = np.nan
     data["Cycle Bottom"] = np.nan
 
@@ -158,11 +158,11 @@ def create_candlestick_chart(data):
         start_date = group["Date"].iloc[0]
         end_date = group["Date"].iloc[-1]
         if phase == "uptrend":
-            color = "rgba(144,238,144,0.5)"   # ljusgrön med hög opacitet
+            color = "rgba(144,238,144,0.5)"   # ljusgrön
         elif phase == "downtrend":
-            color = "rgba(255,182,193,0.5)"   # ljusröd med hög opacitet
+            color = "rgba(255,182,193,0.5)"   # ljusröd
         elif phase == "choppy":
-            color = "rgba(211,211,211,0.5)"   # ljusgrå med hög opacitet
+            color = "rgba(211,211,211,0.5)"   # ljusgrå
         else:
             color = "rgba(255,255,255,0)"
         fig.add_vrect(
@@ -183,10 +183,10 @@ def create_candlestick_chart(data):
         xaxis_title="Date",
         yaxis_title="Price",
         dragmode="pan",
-        hovermode="x",  # Visar en vertikal linje (crosshair) vid hover
+        hovermode="x",
         template="plotly_white",
         xaxis=dict(
-            rangeslider_visible=False,  # Ta bort rangeslider
+            rangeslider_visible=False,
             rangeselector=dict(
                 buttons=[
                     dict(count=1, label="1m", step="month", stepmode="backward"),
@@ -198,56 +198,30 @@ def create_candlestick_chart(data):
                 ]
             )
         ),
-        annotations=[
-            {
-                "xref": "paper",
-                "yref": "paper",
-                "x": 1,
-                "y": 1,
-                "xanchor": "right",
-                "yanchor": "top",
-                "text": annotation_text,
-                "font": {"size": 12, "color": "black"},
-                "bgcolor": "white",
-                "bordercolor": "black",
-                "borderwidth": 1
-            }
-        ]
+        annotations=[{
+            "xref": "paper",
+            "yref": "paper",
+            "x": 1,
+            "y": 1,
+            "xanchor": "right",
+            "yanchor": "top",
+            "text": annotation_text,
+            "font": {"size": 12, "color": "black"},
+            "bgcolor": "white",
+            "bordercolor": "black",
+            "borderwidth": 1
+        }]
     )
     return fig
-def get_market_trend():
-    """
-    Analyserar indextrenden och returnerar en poäng mellan 0-30.
-    - Använder SMA50, SMA200 och prisets position relativt dessa.
-    - Trendpoäng baseras på hur starkt index befinner sig i en uppåtgående trend.
-    """
-    import yfinance as yf
-
-    # 🔹 Hämta SPY som proxy för marknaden
-    spy = yf.download("SPY", period="6mo", interval="1d")["Close"]
-
-    if spy.empty:
-        return 0  # Om datan saknas, returnera 0 poäng
-
-    # 🔹 Beräkna glidande medelvärden
-    sma50 = spy.rolling(window=50).mean().iloc[-1]
-    sma200 = spy.rolling(window=200).mean().iloc[-1]
-    price = spy.iloc[-1]
-
-    # 🔹 Poängsystem baserat på SMA och pris
-    score = 0
-    if price > sma50:
-        score += 10  # Priset över SMA50 → stark trend
-    if price > sma200:
-        score += 10  # Priset över SMA200 → långsiktig bulltrend
-    if sma50 > sma200:
-        score += 10  # SMA50 över SMA200 → Golden Cross = stark trend
-
-    return score
 
 # För visualisering: skapa figuren
 candlestick_chart = create_candlestick_chart(data)
+
+# Definiera layouten för Market Sentiment-sidan
 layout = html.Div([
-    html.H1("Market Sentiment", style={"textAlign": "center"}),
-    dcc.Graph(id="cycle-chart", figure=candlestick_chart)
+    html.H1("Market Sentiment", style={"textAlign": "center", "marginTop": "20px"}),
+    dcc.Graph(
+        id="market-sentiment-chart",
+        figure=candlestick_chart
+    )
 ])
